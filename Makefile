@@ -1,35 +1,40 @@
-BUILDROOT_VERSION = 2020.02.2
-BUILDROOT_IMAGE_NAME = darxkies/buildroot:$(BUILDROOT_VERSION)
-MIPS_IMAGE_NAME = darxkies/mips:$(BUILDROOT_VERSION)
-MIPS_SDK_CONTAINER = docker run -ti -v $$(pwd)/buildroot/mips/config:/config -v $$(pwd)/buildroot/mips/data:/workspace $(BUILDROOT_IMAGE_NAME) 
-MIPS_CONTAINER = docker run -ti --rm -v $$(pwd):/workspace/project -v $$(pwd)/target/registry:/root/.cargo/registry $(MIPS_IMAGE_NAME)
+BUILDROOT_VERSION = 2020.02.3
+BUILDROOT_IMAGE = darxkies/buildroot:$(BUILDROOT_VERSION)
+BUILDROOT_CONTAINER = docker run -ti -v $$(pwd)/buildroot/mips-musl/config:/config -v $$(pwd)/buildroot/mips-musl/data:/workspace $(BUILDROOT_IMAGE) 
+RUST_MIPS_MUSL_VERSION = $(BUILDROOT_VERSION).1
+RUST_MIPS_MUSL_IMAGE = darxkies/rust-mips-musl:$(RUST_MIPS_MUSL_VERSION)
+RUST_MIPS_MUSL_CONTAINER = docker run -ti --rm -v $$(pwd):/workspace/project -v $$(pwd)/target/registry:/root/.cargo/registry $(RUST_MIPS_MUSL_IMAGE)
 
-build: mips-build mips-compile
+build: rust-mips-musl-build compile
 
-buildroot:
-	docker build --build-arg BUILDROOT_VERSION_ARGUMENT=$(BUILDROOT_VERSION) -t $(BUILDROOT_IMAGE_NAME) docker/buildroot
+# Buildroot
+buildroot-build:
+	docker build --build-arg BUILDROOT_VERSION_ARGUMENT=$(BUILDROOT_VERSION) -t $(BUILDROOT_IMAGE) docker/buildroot
 
-mips-sdk-build: buildroot
-	$(MIPS_SDK_CONTAINER) /config/build.sh sdk
-	mkdir -p docker/mips/files
-	(cd buildroot/mips/data/compiler && tar czfv ../../../../docker/mips/files/sdk.tar.gz .)
+buildroot-clean: 
+	sudo rm -Rf buildroot/mips-musl/data
 
-mips-sdk-menuconfig: buildroot
-	$(MIPS_SDK_CONTAINER) /config/build.sh menuconfig
+buildroot-shell: buildroot-build
+	$(BUILDROOT_CONTAINER)
 
-mips-sdk-shell: buildroot
-	$(MIPS_SDK_CONTAINER)
+buildroot-menuconfig: buildroot-build
+	$(BUILDROOT_CONTAINER) /config/build.sh menuconfig
 
-mips-sdk-clean: 
-	sudo rm -Rf buildroot/mips/data
+# Rust Mips Musl
+rust-mips-musl-build: buildroot-build
+	$(BUILDROOT_CONTAINER) /config/build.sh sdk
+	mkdir -p docker/rust-mips-musl/files
+	(cd buildroot/mips-musl/data/compiler && tar czfv ../../../../docker/rust-mips-musl/files/sdk.tar.gz .)
+	docker build -t $(RUST_MIPS_MUSL_IMAGE) docker/rust-mips-musl 
 
-mips-build: mips-sdk-build
-	docker build -t $(MIPS_IMAGE_NAME) docker/mips 
+rust-mips-musl-push: rust-mips-musl-build
+	docker push $(RUST_MIPS_MUSL_IMAGE) 
 
-mips-shell: 
-	$(MIPS_CONTAINER) /bin/bash
+rust-mips-musl-shell: 
+	$(RUST_MIPS_MUSL_CONTAINER) /bin/bash
 
-mips-compile: 
-	$(MIPS_CONTAINER) cargo build --release
+# Rust Compiler
+compile: 
+	$(RSUT_MIPS_MUSL_CONTAINER) cargo build --release
 
 .PHONY: buildroot

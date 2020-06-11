@@ -29,5 +29,3 @@ RUN tar xzfv /workspace/sdk.tar.gz -C /workspace/compiler
 ENV PATH=/workspace/compiler/bin:$PATH
 
 WORKDIR /workspace/project
-
-# cargo build --target=armv7-unknown-linux-musleabihf --release
