@@ -35,6 +35,6 @@ rust-mips-musl-shell:
 
 # Rust Compiler
 compile: 
-	$(RSUT_MIPS_MUSL_CONTAINER) cargo build --release
+	$(RUST_MIPS_MUSL_CONTAINER) cargo build --release
 
 .PHONY: buildroot
